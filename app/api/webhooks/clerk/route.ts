@@ -1,132 +1,116 @@
 import { createUser, updateUser } from "@/lib/actions/user.actions";
 import { ClerkUser } from "@/lib/types";
-import { WebhookEvent, clerkClient } from "@clerk/nextjs/server";
-import { headers } from "next/headers";
+import type { WebhookEvent } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { Webhook } from "svix";
 
-const MAX_RETRIES = 5;
-const INITIAL_DELAY = 1000; // 1 second
+export async function POST(request: Request) {
+  const webhookSecret = process.env.WEBHOOK_SECRET;
 
-export async function POST(req: Request) {
-  const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error("WEBHOOK_SECRET is not configured.");
 
-  if (!WEBHOOK_SECRET) {
-    throw new Error(
-      "Please add WEBHOOK_SECRET from Clerk Dashboard to .env or .env.local"
-    );
+    return new Response("Webhook secret is not configured.", {
+      status: 500,
+    });
   }
 
-  // Get the headers
-  const headerPayload = headers();
-  const svix_id = headerPayload.get("svix-id");
-  const svix_timestamp = headerPayload.get("svix-timestamp");
-  const svix_signature = headerPayload.get("svix-signature");
+  const svixId = request.headers.get("svix-id");
+  const svixTimestamp = request.headers.get("svix-timestamp");
+  const svixSignature = request.headers.get("svix-signature");
 
-  // If there are no headers, error out
-  if (!svix_id || !svix_timestamp || !svix_signature) {
-    return new Response("Error occured -- no svix headers", {
+  if (!svixId || !svixTimestamp || !svixSignature) {
+    return new Response("Missing required Svix headers.", {
       status: 400,
     });
   }
 
-  // Get the body
-  const payload = await req.json();
-  const body = JSON.stringify(payload);
+  // Read the unmodified request body. Svix verifies the
+  // signature against the exact raw payload.
+  const body = await request.text();
 
-  // Create a new Svix instance with your secret.
-  const wh = new Webhook(WEBHOOK_SECRET);
+  const webhook = new Webhook(webhookSecret);
 
-  let evt: WebhookEvent;
+  let event: WebhookEvent;
 
-  // Verify the payload with the headers
   try {
-    evt = wh.verify(body, {
-      "svix-id": svix_id,
-      "svix-timestamp": svix_timestamp,
-      "svix-signature": svix_signature,
+    event = webhook.verify(body, {
+      "svix-id": svixId,
+      "svix-timestamp": svixTimestamp,
+      "svix-signature": svixSignature,
     }) as WebhookEvent;
-  } catch (err) {
-    console.error("Error verifying webhook:", err);
-    return new Response("Error occured", {
+  } catch (error) {
+    console.error("Clerk webhook verification failed:", error);
+
+    return new Response("Invalid webhook signature.", {
       status: 400,
     });
   }
 
-  // Get the ID and type
-  const { id } = evt.data;
-  const eventType = evt.type;
+  if (event.type === "user.created") {
+    const { id, first_name, last_name, username, image_url, email_addresses } =
+      event.data;
 
-  // CREATE
-  if (eventType === "user.created") {
-    let userName = "";
-    const { id, image_url, first_name, last_name, username } = evt.data;
-
-    if (username) {
-      userName = username;
-    } else {
-      userName = await fetchUserNameWithRetry(id);
-    }
+    const fallbackUsername =
+      email_addresses[0]?.email_address
+        ?.split("@")[0]
+        .replace(/[^a-zA-Z0-9_]/g, "_") || `user_${id.slice(-8)}`;
 
     const user: ClerkUser = {
       id,
       firstName: first_name || "",
       lastName: last_name || "",
-      username: userName,
-      avatar: image_url,
+      username: username || fallbackUsername,
+      avatar: image_url || null,
     };
 
-    const newUser = await createUser(user);
+    const result = await createUser(user);
 
-    return NextResponse.json({ message: "OK", user: newUser });
+    if (!result.success) {
+      return NextResponse.json(result, {
+        status: 500,
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "User created successfully.",
+    });
   }
 
-  //UPDATE
-  if (eventType === "user.updated") {
-    const userId = evt.data.id;
-    const { id, firstName, lastName, username, imageUrl } =
-      await clerkClient.users.getUser(userId);
+  if (event.type === "user.updated") {
+    const { id, first_name, last_name, username, image_url, email_addresses } =
+      event.data;
+
+    const fallbackUsername =
+      email_addresses[0]?.email_address
+        ?.split("@")[0]
+        .replace(/[^a-zA-Z0-9_]/g, "_") || `user_${id.slice(-8)}`;
 
     const user: ClerkUser = {
       id,
-      firstName: firstName || "",
-      lastName: lastName || "",
-      username: username || "",
-      avatar: imageUrl,
+      firstName: first_name || "",
+      lastName: last_name || "",
+      username: username || fallbackUsername,
+      avatar: image_url || null,
     };
 
-    const updatedUser = await updateUser(user);
+    const result = await updateUser(user);
 
-    return NextResponse.json({ message: "OK", user: updatedUser });
+    if (!result.success) {
+      return NextResponse.json(result, {
+        status: 500,
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "User updated successfully.",
+    });
   }
 
-  return new Response("", { status: 200 });
+  return NextResponse.json({
+    success: true,
+    message: "Webhook received.",
+  });
 }
-
-const fetchUserNameWithRetry = async (
-  userId: string,
-  retries = 0
-): Promise<string> => {
-  try {
-    const { username } = await clerkClient.users.getUser(userId);
-
-    if (username) {
-      return username;
-    } else {
-      throw new Error("Username not available yet.");
-    }
-  } catch (error: any) {
-    if (retries < MAX_RETRIES) {
-      const delay = INITIAL_DELAY * Math.pow(2, retries);
-      console.log(
-        `Retry ${retries + 1}/${MAX_RETRIES}: Waiting ${delay}ms to retry...`
-      );
-      await new Promise((res) => setTimeout(res, delay));
-      return fetchUserNameWithRetry(userId, retries + 1);
-    } else {
-      throw new Error(
-        `Failed to fetch user details after ${MAX_RETRIES} retries: ${error.message}`
-      );
-    }
-  }
-};
