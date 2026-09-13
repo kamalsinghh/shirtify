@@ -5,6 +5,7 @@ import { ICustomization, PreviousImages } from "../types";
 import { isBase64 } from "../utils";
 import { sql } from "@vercel/postgres";
 import { unstable_noStore as noStore } from "next/cache";
+import { auth } from "@clerk/nextjs/server";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -44,7 +45,14 @@ export const createCustomization = async ({
   isFullImage,
   color,
 }: ICustomization) => {
+  const { userId } = await auth();
+  if (!userId || userId !== id) throw new Error("You must be signed in.");
+
   const [logoImageUrl, fullImageUrl] = await uploadImages(logoImage, fullImage);
+
+  if (!logoImageUrl || !fullImageUrl) {
+    throw new Error("Please upload an image before sharing your design.");
+  }
 
   try {
     await sql`
@@ -52,9 +60,8 @@ export const createCustomization = async ({
     VALUES (${id}, ${logoImageUrl}, ${fullImageUrl}, ${isLogoImage}, ${isFullImage}, ${color})
   `;
   } catch (error) {
-    return {
-      message: "Database Error: Failed to Create Customization.",
-    };
+    await deleteImages(logoImageUrl, fullImageUrl);
+    throw new Error("Failed to create the customization.");
   }
 };
 
@@ -66,9 +73,11 @@ export const updateCustomization = async ({
   isFullImage,
   color,
 }: ICustomization) => {
-  const previousImages = (await getPreviousImages(id)) as PreviousImages[];
+  const { userId } = await auth();
+  if (!userId) throw new Error("You must be signed in.");
 
-  await deleteImages(previousImages[0].logoImage, previousImages[0].fullImage);
+  const previousImages = await getPreviousImages(id, userId);
+  if (!previousImages.length) throw new Error("Customization not found.");
 
   const [logoImageUrl, fullImageUrl] = await uploadImages(logoImage, fullImage);
 
@@ -82,16 +91,15 @@ export const updateCustomization = async ({
     color = ${color}
     WHERE id = ${id}
   `;
+    await deleteReplacedImages(previousImages[0], logoImageUrl, fullImageUrl);
   } catch (error) {
-    return {
-      message: "Database Error: Failed to Update Customization.",
-    };
+    throw new Error("Failed to update the customization.");
   }
 };
 
 export const getUserCustomizations = async (
   userId: string,
-  pageNumber: number
+  pageNumber: number,
 ) => {
   noStore();
   const offset = (pageNumber - 1) * ITEMS_PER_PAGE;
@@ -181,32 +189,34 @@ export const getUserCustomizationsPages = async (userId: string) => {
   }
 };
 
-export const deleteCustomization = async (
-  id: string,
-  logoImageUrl: string,
-  fullImageUrl: string
-) => {
-  try {
-    await deleteImages(logoImageUrl, fullImageUrl);
+export const deleteCustomization = async (id: string) => {
+  const { userId } = await auth();
+  if (!userId) throw new Error("You must be signed in.");
 
+  const previousImages = await getPreviousImages(id, userId);
+  if (!previousImages.length) throw new Error("Customization not found.");
+
+  try {
     await sql`
     DELETE FROM customizations
-    WHERE id = ${id}
+    WHERE id = ${id} AND user_id = ${userId}
   `;
+    await deleteImages(
+      previousImages[0].logoImage,
+      previousImages[0].fullImage,
+    );
   } catch (error) {
-    return {
-      message: "Database Error: Failed to Delete Customization.",
-    };
+    throw new Error("Failed to delete the customization.");
   }
 };
 
 const uploadImages = async (
   logoImage: string,
-  fullImage: string
+  fullImage: string,
 ): Promise<[string | null, string | null]> => {
   const folder = "shirtify";
-  let logoImageUrl = null;
-  let fullImageUrl = null;
+  let logoImageUrl: string | null = logoImage || null;
+  let fullImageUrl: string | null = fullImage || null;
 
   cloudinary.config({
     cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
@@ -274,23 +284,39 @@ const deleteImages = async (logoImageUrl: string, fullImageUrl: string) => {
   }
 };
 
+const deleteReplacedImages = async (
+  previous: PreviousImages,
+  logoImageUrl: string | null,
+  fullImageUrl: string | null,
+) => {
+  const replaced = [previous.logoImage, previous.fullImage].filter(
+    (url, index, urls) =>
+      urls.indexOf(url) === index &&
+      url !== logoImageUrl &&
+      url !== fullImageUrl,
+  );
+
+  await Promise.all(replaced.map((url) => deleteImages(url, url)));
+};
+
 const getPublicId = (url: string) => {
   return url.substring(url.lastIndexOf("/") + 1, url.lastIndexOf("."));
 };
 
-const getPreviousImages = async (id: string) => {
+const getPreviousImages = async (
+  id: string,
+  userId: string,
+): Promise<PreviousImages[]> => {
   try {
     const result = await sql`
     SELECT 
     logo_image AS "logoImage", 
     full_image AS "fullImage" 
     FROM customizations
-    WHERE id = ${id}
+    WHERE id = ${id} AND user_id = ${userId}
   `;
-    return result.rows;
+    return result.rows as PreviousImages[];
   } catch (error) {
-    return {
-      message: "Database Error: Failed to Update Customization.",
-    };
+    throw new Error("Failed to retrieve the customization.");
   }
 };

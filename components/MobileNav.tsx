@@ -1,6 +1,6 @@
 "use client";
 
-import { SignedIn, SignedOut, UserButton, useAuth } from "@clerk/nextjs";
+import { Show, UserButton, useAuth } from "@clerk/nextjs";
 import {
   Sheet,
   SheetClose,
@@ -37,7 +37,7 @@ const MobileNav = () => {
       </Link>
       <div className="flex gap-4">
         <ThemeSwitch />
-        <SignedOut>
+        <Show when="signed-out">
           <div className="rounded-button bg-primary">
             <Link
               href={`/sign-in?redirectTo=${encodeURIComponent(redirectTo)}`}
@@ -45,10 +45,10 @@ const MobileNav = () => {
               Sign In
             </Link>
           </div>
-        </SignedOut>
-        <SignedIn>
-          <UserButton afterSignOutUrl={`${encodeURIComponent(redirectTo)}`} />
-        </SignedIn>
+        </Show>
+        <Show when="signed-in">
+          <UserButton />
+        </Show>
         <Sheet>
           <SheetTrigger>
             <TbMenuDeep className="w-6 h-6" color="#F50056" />
@@ -75,7 +75,7 @@ const MobileNav = () => {
                 );
               })}
 
-              <SignedIn>
+              <Show when="signed-in">
                 <li key="profile">
                   <SheetClose asChild>
                     <Link
@@ -89,7 +89,7 @@ const MobileNav = () => {
                     </Link>
                   </SheetClose>
                 </li>
-              </SignedIn>
+              </Show>
             </ul>
           </SheetContent>
         </Sheet>

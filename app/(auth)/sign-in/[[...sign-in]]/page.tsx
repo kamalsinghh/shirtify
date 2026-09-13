@@ -1,11 +1,20 @@
 import { SignIn } from "@clerk/nextjs";
 
-const SignInPage = ({
-  searchParams: { redirectTo },
-}: {
-  searchParams: { redirectTo?: string };
-}) => {
-  return <SignIn fallbackRedirectUrl={redirectTo || "/"} />;
+type SignInPageProps = {
+  searchParams: Promise<{
+    redirectTo?: string;
+  }>;
+};
+
+const SignInPage = async ({ searchParams }: SignInPageProps) => {
+  const { redirectTo } = await searchParams;
+
+  const safeRedirect =
+    redirectTo?.startsWith("/") && !redirectTo.startsWith("//")
+      ? redirectTo
+      : "/";
+
+  return <SignIn fallbackRedirectUrl={safeRedirect} />;
 };
 
 export default SignInPage;

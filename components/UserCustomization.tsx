@@ -1,9 +1,7 @@
 "use client";
 
 import { IThreeDModelState } from "@/lib/types";
-import { useEffect, useState } from "react";
-import { urlToBase64 } from "@/lib/utils";
-import { Loader } from "@react-three/drei";
+import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import {
   Dialog,
@@ -38,14 +36,7 @@ const UserCustomization = ({
 }: UserCustomizationProps) => {
   const { isSignedIn, userId: loggedInUserId } = useAuth();
 
-  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const threeDModelStateWithBase64Images = {
-    ...threeDModelState,
-    logoImage: state.logoImage,
-    fullImage: state.fullImage,
-  };
 
   const router = useRouter();
 
@@ -59,43 +50,23 @@ const UserCustomization = ({
     state.fullImage = fullImage;
   };
 
-  useEffect(() => {
-    const loadImagesFromUrl = async () => {
-      const [logoImageResponse, fullImageResponse] = await Promise.all([
-        urlToBase64(threeDModelState.logoImage),
-        urlToBase64(threeDModelState.fullImage),
-      ]);
-
-      threeDModelStateWithBase64Images.logoImage = logoImageResponse;
-      threeDModelStateWithBase64Images.fullImage = fullImageResponse;
-    };
-
-    setIsLoading(true);
-    loadImagesFromUrl();
-    setIsLoading(false);
-  }, []);
-
   const handleDelete = async () => {
-    setIsSubmitting(true);
-    await deleteCustomization(
-      customizationId,
-      threeDModelState.logoImage,
-      threeDModelState.fullImage
-    );
-    setIsSubmitting(false);
-    resetState();
-    router.replace("/customizations");
+    try {
+      setIsSubmitting(true);
+      await deleteCustomization(customizationId);
+      resetState();
+      router.replace("/customizations");
+      router.refresh();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-
-  if (isLoading) {
-    return <Loader />;
-  }
 
   return (
     <div className="w-[100vw] h-[82vh]">
       <Scene
         isCustomizable={false}
-        threeDModelState={threeDModelStateWithBase64Images}
+        threeDModelState={threeDModelState}
         showTexture={true}
       />
       {isSignedIn && userId === loggedInUserId && (

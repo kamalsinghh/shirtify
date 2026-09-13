@@ -10,15 +10,22 @@ const FilePicker = ({ file, setFile, readFile }: IFilePicker) => {
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
-    setFile(e.target.files ? e.target.files[0] : null);
-
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.includes("image")) {
+    if (!file.type.startsWith("image/")) {
       alert("Please upload an image!");
+      e.target.value = "";
       return;
     }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Please choose an image smaller than 10 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setFile(file);
 
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -30,7 +37,7 @@ const FilePicker = ({ file, setFile, readFile }: IFilePicker) => {
 
   return (
     <div className="filepicker-container">
-      <div className="realtive w-full h-full">
+      <div className="relative w-full h-full">
         <input
           id="file-upload"
           className="absolute z-50 top-0 left-0 opacity-0 w-full h-36 cursor-pointer"

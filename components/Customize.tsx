@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Toaster, toast } from "sonner";
-import { SignedIn, useAuth } from "@clerk/nextjs";
+import { Show, useAuth } from "@clerk/nextjs";
 import { slideAnimation } from "@/lib/motion";
 import { EditorTabs, FilterTabs } from "@/lib/constants";
 import { motion } from "framer-motion";
@@ -38,10 +38,10 @@ const Customize = ({
   const [file, setFile] = useState<File | null>(null);
   const [activeEditorTab, setActiveEditorTab] = useState("");
   const [isLogoActive, setIsLogoActive] = useState(
-    type === "create" ? state.isLogoImage : threeDModelState?.isLogoImage
+    type === "create" ? state.isLogoImage : threeDModelState?.isLogoImage,
   );
   const [isFullActive, setIsFullActive] = useState(
-    type === "create" ? state.isFullImage : threeDModelState?.isFullImage
+    type === "create" ? state.isFullImage : threeDModelState?.isFullImage,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isShared, setIsShared] = useState(type === "create" ? false : true);
@@ -66,14 +66,14 @@ const Customize = ({
           state.fullImage = fullImageResponse;
         } else if (threeDModelState.logoImage) {
           const logoImageResponse = await urlToBase64(
-            threeDModelState.logoImage
+            threeDModelState.logoImage,
           );
 
           state.logoImage = logoImageResponse;
           state.fullImage = logoImageResponse;
         } else if (threeDModelState.fullImage) {
           const fullImageResponse = await urlToBase64(
-            threeDModelState.fullImage
+            threeDModelState.fullImage,
           );
 
           state.logoImage = fullImageResponse;
@@ -82,10 +82,11 @@ const Customize = ({
       };
 
       setIsLoading(true);
-      loadImagesFromUrl();
-      setIsLoading(false);
+      loadImagesFromUrl()
+        .catch(() => toast.error("Unable to load the saved design images."))
+        .finally(() => setIsLoading(false));
     }
-  }, []);
+  }, [threeDModelState]);
 
   const generateTabContent = () => {
     switch (activeEditorTab) {
@@ -108,8 +109,10 @@ const Customize = ({
 
     if (type === "logoImage" && !state.isLogoImage) {
       state.isLogoImage = true;
+      setIsLogoActive(true);
     } else if (type === "fullImage" && !state.isFullImage) {
       state.isFullImage = true;
+      setIsFullActive(true);
     }
   };
 
@@ -134,6 +137,11 @@ const Customize = ({
   };
 
   const handleShare = async () => {
+    if (!isSignedIn) {
+      toast.error("Please sign in to share your design.");
+      return;
+    }
+
     if (isSignedIn) {
       if (isBase64(state.logoImage) || isBase64(state.fullImage)) {
         const customization: ICustomization = {
@@ -150,22 +158,26 @@ const Customize = ({
         try {
           if (type === "create") {
             await createCustomization(customization);
-            toast("Your design is shared with the community.");
+            toast.success("Your design is shared with the community.");
           } else if (threeDModelState) {
             const updateCustomizationDetails = customization;
 
             await updateCustomization(updateCustomizationDetails);
-            toast("Your design is updated successfully.");
+            toast.success("Your design is updated successfully.");
           }
 
           setIsShared(true);
         } catch (error) {
-          console.log(error);
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Unable to save the design.",
+          );
         } finally {
           setIsSubmitting(false);
         }
       } else {
-        toast("Please select an image for your design.");
+        toast.error("Please select an image for your design.");
       }
     }
   };
@@ -179,7 +191,7 @@ const Customize = ({
       <div className="flex flex-1 w-[100vw] h-[82vh]">
         <Scene isCustomizable={true} showTexture={true} />
 
-        <SignedIn>
+        <Show when="signed-in">
           {isSubmitting ? (
             <div
               className="absolute bottom-36 lg:top-0 lg:right-0 z-0 lg:mr-24 w-full lg:w-fit
@@ -203,6 +215,7 @@ const Customize = ({
                   }}
                 >
                   <button
+                    type="button"
                     className={`${pacifico.className} text-primary font-extrabold text-3xl`}
                     onClick={handleShare}
                   >
@@ -212,7 +225,7 @@ const Customize = ({
               )}
             </>
           )}
-        </SignedIn>
+        </Show>
 
         <motion.div
           key="custom"

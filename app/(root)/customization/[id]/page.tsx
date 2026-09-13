@@ -1,15 +1,24 @@
 import UserCustomization from "@/components/UserCustomization";
 import { getCustomizationByID } from "@/lib/actions/customize.action";
 import { ICustomizationDetails, IThreeDModelState } from "@/lib/types";
+import { notFound } from "next/navigation";
 
-const CustomizationPage = async ({
-  params: { id },
-}: {
-  params: { id: string };
-}) => {
+type CustomizationPageProps = {
+  params: Promise<{
+    id: string;
+  }>;
+};
+
+const CustomizationPage = async ({ params }: CustomizationPageProps) => {
+  const { id } = await params;
+
   const customizations = (await getCustomizationByID(
-    id
+    id,
   )) as ICustomizationDetails[];
+
+  if (!customizations.length) {
+    notFound();
+  }
 
   const { color, logoImage, fullImage, isLogoImage, isFullImage, userId } =
     customizations[0];

@@ -30,7 +30,7 @@ const Connections = ({ userId }: { userId: string }) => {
     };
 
     fetchConnections();
-  }, []);
+  }, [userId]);
 
   const showFollowersModal = () => {
     setModalType(ModalType.Followers);
@@ -54,21 +54,17 @@ const Connections = ({ userId }: { userId: string }) => {
     }
   };
 
-  if (dialogRef.current) {
-    dialogRef.current.addEventListener("click", (e) => {
-      if (dialogRef.current) {
-        const dialogDimensions = dialogRef.current.getBoundingClientRect();
-        if (
-          e.clientX < dialogDimensions.left ||
-          e.clientX > dialogDimensions.right ||
-          e.clientY < dialogDimensions.top ||
-          e.clientY > dialogDimensions.bottom
-        ) {
-          dialogRef.current.close();
-        }
-      }
-    });
-  }
+  const closeOnBackdrop = (e: React.MouseEvent<HTMLDialogElement>) => {
+    const dialogDimensions = e.currentTarget.getBoundingClientRect();
+    if (
+      e.clientX < dialogDimensions.left ||
+      e.clientX > dialogDimensions.right ||
+      e.clientY < dialogDimensions.top ||
+      e.clientY > dialogDimensions.bottom
+    ) {
+      e.currentTarget.close();
+    }
+  };
 
   return (
     <motion.div className="flex gap-2 w-full">
@@ -85,7 +81,11 @@ const Connections = ({ userId }: { userId: string }) => {
       >
         Following
       </button>
-      <dialog className="rounded-2xl w-[90vw] max-w-md p-4" ref={dialogRef}>
+      <dialog
+        className="rounded-2xl w-[90vw] max-w-md p-4"
+        ref={dialogRef}
+        onClick={closeOnBackdrop}
+      >
         <div className="flex-col items-center justify-center">
           <div>
             <h1 className="mb-2 font-bold text-center">

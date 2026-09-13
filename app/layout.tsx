@@ -16,6 +16,7 @@ export default function AppLayout({
 }>) {
   return (
     <ClerkProvider
+      afterSignOutUrl="/"
       appearance={{ variables: { colorPrimary: "#F50056" } }}
       signInFallbackRedirectUrl={"/"}
       signUpFallbackRedirectUrl={"/"}

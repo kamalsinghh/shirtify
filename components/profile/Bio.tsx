@@ -11,7 +11,7 @@ type BioProps = {
   canEdit: boolean;
 };
 
-const Bio = ({ bio: bioDetails, id }: BioProps) => {
+const Bio = ({ bio: bioDetails, id, canEdit }: BioProps) => {
   const [bio, setBio] = useState(bioDetails);
   const [bioDialog, setBioDialog] = useState(bioDetails);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,11 +20,16 @@ const Bio = ({ bio: bioDetails, id }: BioProps) => {
 
   const updateBio = async () => {
     setIsSubmitting(true);
-    const result = await updateUserBio(id, bioDialog);
-    setIsSubmitting(false);
-    closeModal();
-    setBio(bioDialog);
-    toast("Bio updated successfully.");
+    try {
+      await updateUserBio(id, bioDialog);
+      closeModal();
+      setBio(bioDialog);
+      toast.success("Bio updated successfully.");
+    } catch {
+      toast.error("Unable to update your bio.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const showModal = () => {
@@ -60,12 +65,14 @@ const Bio = ({ bio: bioDetails, id }: BioProps) => {
     <div>
       <div className="flex max-w-2xl items-center gap-2 mt-5 cursor-pointer relative group">
         <p
-          onClick={showModal}
+          onClick={canEdit ? showModal : undefined}
           className="text-lg sm:text-xl hover:opacity-50 transition-opacity duration-300 "
         >
           {bio ? bio : "Elevating style to an art form, one outfit at a time."}
         </p>
-        <MdEdit className="text-primary text-2xl opacity-0 group-hover:opacity-100" />
+        {canEdit && (
+          <MdEdit className="text-primary text-2xl opacity-0 group-hover:opacity-100" />
+        )}
       </div>
 
       <dialog className="rounded-2xl w-[90vw] max-w-md p-4" ref={dialogRef}>

@@ -1,11 +1,8 @@
 "use client";
 
 import { ICustomizationDetails, IThreeDModelState } from "@/lib/types";
-import { urlToBase64 } from "@/lib/utils";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import CardUser from "./CardUser";
-import state from "@/store";
 import dynamic from "next/dynamic";
 import { fade } from "@/lib/motion";
 import { motion } from "framer-motion";
@@ -103,29 +100,12 @@ const CustomizationCard = ({
   customizationDetail: ICustomizationDetails;
   isProfile?: boolean;
 }) => {
-  const [logoImage, setLogoImage] = useState(state.logoImage);
-  const [fullImage, setFullImage] = useState(state.fullImage);
-
-  useEffect(() => {
-    const loadImagesFromUrl = async () => {
-      const [logoImageResponse, fullImageResponse] = await Promise.all([
-        urlToBase64(customizationDetail.logoImage),
-        urlToBase64(customizationDetail.fullImage),
-      ]);
-
-      setLogoImage(logoImageResponse);
-      setFullImage(fullImageResponse);
-    };
-
-    loadImagesFromUrl();
-  }, []);
-
   const threeDModelState: IThreeDModelState = {
     color: customizationDetail.color,
     isLogoImage: customizationDetail.isLogoImage,
     isFullImage: customizationDetail.isFullImage,
-    logoImage: logoImage,
-    fullImage: fullImage,
+    logoImage: customizationDetail.logoImage,
+    fullImage: customizationDetail.fullImage,
   };
 
   return (

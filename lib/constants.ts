@@ -22,10 +22,6 @@ export const EditorTabs: ITabInfo[] = [
     name: "filepicker",
     icon: "/assets/images/file.png",
   },
-  {
-    name: "aipicker",
-    icon: "/assets/images/ai.png",
-  },
 ];
 
 export const FilterTabs: ITabInfo[] = [

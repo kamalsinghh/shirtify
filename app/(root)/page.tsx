@@ -28,13 +28,14 @@ export default function Home() {
         <div className="flex flex-col gap-6 xl:gap-10">
           <motion.div {...headTextAnimation}>
             <h1
-              className="xl:text-[8rem] text-[3rem] xl:leading-[11rem] leading-[6rem] 
-            font-black md:text-start text-center"
+              className="xl:text-[8rem] text-[3rem] xl:leading-[11rem]
+              leading-[6rem] font-black md:text-start text-center"
             >
               LET&apos;S
               <br className="hidden xl:block" /> DESIGN
             </h1>
           </motion.div>
+
           <motion.div
             {...headContentAnimation}
             className="flex flex-col xl:gap-12 gap-8 xl:justify-start justify-center"
@@ -44,12 +45,16 @@ export default function Home() {
               <br />
               <strong>Wear Innovation, Wear Exclusivity</strong>
             </p>
+
             <div className="w-full flex xl:justify-start justify-center">
               <motion.div
                 whileHover={{ scale: 1.1 }}
                 animate={{
                   y: [0, -15, 0],
-                  transition: { repeat: Infinity, duration: 1.5 },
+                  transition: {
+                    repeat: Infinity,
+                    duration: 1.5,
+                  },
                 }}
               >
                 <Link
@@ -63,11 +68,13 @@ export default function Home() {
           </motion.div>
         </div>
       </motion.div>
+
       <div className="hidden lg:flex w-3/5 flex-col justify-center items-center gap-6">
-        <Scene isCustomizable={true} showTexture={true} />
+        <Scene isCustomizable showTexture />
       </div>
+
       <div className="flex lg:hidden w-full h-[480px] mt-4 justify-center items-center">
-        <Scene isCustomizable={true} showTexture={true} />
+        <Scene isCustomizable showTexture />
       </div>
     </motion.section>
   );

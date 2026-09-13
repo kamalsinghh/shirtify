@@ -1,6 +1,6 @@
 export type IFilePicker = {
   file: File | null;
-  setFile: any;
+  setFile: React.Dispatch<React.SetStateAction<File | null>>;
   readFile: (type: IDecalType) => void;
 };
 

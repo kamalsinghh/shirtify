@@ -25,7 +25,7 @@ const FollowButton = ({ userId, followingId }: ProfileActionsProps) => {
     };
 
     fetchData().catch((error) => console.log(error));
-  }, []);
+  }, [followingId, userId]);
 
   const handleOnClick = async () => {
     try {

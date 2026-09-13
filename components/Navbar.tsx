@@ -1,6 +1,6 @@
 "use client";
 
-import { SignedIn, SignedOut, UserButton, useAuth } from "@clerk/nextjs";
+import { Show, UserButton, useAuth } from "@clerk/nextjs";
 import Image from "next/image";
 import Link from "next/link";
 import ThemeSwitch from "./ThemeSwitch";
@@ -41,7 +41,7 @@ const Navbar = () => {
           );
         })}
 
-        <SignedIn>
+        <Show when="signed-in">
           <Link
             href={`/profile/${userId}`}
             className="text-primary font-semibold text-xl text-hover"
@@ -50,13 +50,13 @@ const Navbar = () => {
           >
             My Designs
           </Link>
-        </SignedIn>
+        </Show>
       </div>
 
       <div className="flex justify-center items-center gap-4 sm:gap-6">
         <ThemeSwitch />
         <>
-          <SignedOut>
+          <Show when="signed-out">
             <div className="rounded-button bg-primary">
               <Link
                 href={`/sign-in?redirectTo=${encodeURIComponent(redirectTo)}`}
@@ -64,10 +64,10 @@ const Navbar = () => {
                 Sign In
               </Link>
             </div>
-          </SignedOut>
-          <SignedIn>
-            <UserButton afterSignOutUrl={`${encodeURIComponent(redirectTo)}`} />
-          </SignedIn>
+          </Show>
+          <Show when="signed-in">
+            <UserButton />
+          </Show>
         </>
       </div>
     </nav>
